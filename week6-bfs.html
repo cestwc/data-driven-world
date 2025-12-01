@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<!-- Removed manual viewport tag to let Reveal.js handle scaling natively -->
+<title>Week 6: Graph & BFS Traversal</title>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
+<!-- Reveal.js Core -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/simple.min.css" id="theme">
+
+<!-- Syntax Highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
+
+<!-- Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+/* ============================================
+   PALETTE & TYPOGRAPHY
+   ============================================ */
+:root {
+  --color-red: #eb5e5f;
+  --color-teal: #4fbccb;
+  --color-green: #8bc469;
+  --color-yellow: #f3c462;
+  --color-gray: #e8e8e8;
+  --color-text: #2c3e50;
+  --font-main: "Inter", sans-serif;
+}
+
+.reveal {
+  font-family: var(--font-main) !important;
+  color: var(--color-text);
+}
+
+/* Keep headings clean but DO NOT override Reveal.js sizes */
+.reveal strong {
+  color: var(--color-red);
+}
+
+/* ============================================
+   LAYOUT UTILITIES (SAFE VERSION)
+   ============================================ */
+.split-layout {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.col-half {
+  flex: 1 1 45%;
+  min-width: 280px;
+}
+
+/* ============================================
+   TITLE SLIDE (REMOVED height:100%)
+   ============================================ */
+.title-slide-container {
+  text-align: center;
+}
+
+.title-main h1 {
+  color: #222;
+  font-size: 2.6em;
+}
+
+.title-accent {
+  width: 120px;
+  height: 6px;
+  background-color: var(--color-teal);
+  margin: 20px auto 40px auto;
+  border-radius: 3px;
+}
+
+.title-main h3 {
+  color: #555;
+  font-size: 1em;
+  font-weight: 100;
+}
+
+.title-meta {
+  font-size: 0.9em;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.title-meta .sub-meta {
+  font-weight: 400;
+  color: #777;
+}
+
+.qr-code-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.qr-code-container img {
+  width: 90px;
+  height: 90px;
+}
+
+/* ============================================
+   DEFINITION BOX
+   ============================================ */
+.def-box {
+  background: #f9f9f9;
+  border-left: 6px solid var(--color-teal);
+  padding: 15px;
+  margin: 20px 0;
+  font-size: 0.85em;
+  text-align: left;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+/* ============================================
+   TABLES
+   ============================================ */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.65em;
+}
+
+.comparison-table th {
+  background-color: var(--color-teal);
+  color: white;
+  padding: 10px;
+}
+
+.comparison-table td {
+  border-bottom: 1px solid #ddd;
+  padding: 10px;
+}
+
+.pro { color: var(--color-green); font-weight: bold; }
+.con { color: var(--color-red); font-weight: bold; }
+
+/* ============================================
+   GRAPH SVG (safe scaling)
+   ============================================ */
+.graph-svg {
+  width: 100%;
+  background: #fff;
+}
+
+.node circle {
+  stroke: #333;
+  stroke-width: 2px;
+  fill: white;
+}
+
+.node text {
+  font-family: var(--font-main);
+  font-weight: bold;
+  fill: #333;
+  font-size: 16px;
+  dominant-baseline: middle;
+  text-anchor: middle;
+}
+
+.edge { stroke: #ccc; stroke-width: 2px; }
+
+/* BFS Highlight states */
+.node.visited circle { fill: var(--color-gray); stroke: #999; }
+.node.active circle { fill: var(--color-teal); stroke: var(--color-teal); }
+.node.active text { fill: white; }
+.node.neighbor circle { fill: var(--color-yellow); stroke: var(--color-yellow); }
+
+</style>
+
+</head>
+<body>
+
+<div class="reveal">
+<div class="slides">
+
+    <!-- =======================================================
+         PHASE 1: THE WHAT AND HOW (Basics)
+         ======================================================= -->
+
+    <!-- SLIDE 1: Title (Clean Layout) -->
+    <section>
+        <div class="title-slide-container">
+            <div class="title-main" style="margin-top:50px;">
+                <h1>Graphs & BFS Traversal</h1>
+                <div class="title-accent"></div>
+                <h3>Definition, Representation, Traversal, and Applications</h3>
+            </div>
+
+            <div class="title-meta" style="margin-top:200px;">
+                <div>10.020 Data Driven World</div>
+                <!-- <div class="sub-meta">Lecture 11 &bull; Fall Semester 2025</div> -->
+            </div>
+
+            <div class="qr-code-container">
+                <!-- Dummy QR Codes -->
+                <!-- <img src="" alt="Course Materials QR">
+                <img src="" alt="Attendance QR"> -->
+                <div id="qrcode1"></div>
+                <div id="qrcode2"></div>                
+            </div>
+        </div>
+
+        <script>
+        // Replace this with your link
+        new QRCode(document.getElementById("qrcode1"), {
+            text: "cestwc.github.io/data-driven-world/week6-bfs",
+            width: 150,
+            height: 150
+        });
+
+        new QRCode(document.getElementById("qrcode2"), {
+            text: "https://data-driven-world.github.io/2023/notes/category/week-6-graph-traversal",
+            width: 150,
+            height: 150
+        });
+        </script>
+    </section>
+
+    <section>
+        <h2>Graph Traversal Module</h2>
+
+        <div class="def-box" style="border-left-color: var(--color-teal); font-size: 0.45em;">
+            <strong>What we will cover across this topic:</strong>
+        </div>
+
+        <div style="font-size: 0.45em; margin-top: 20px; text-align: left;">
+            <h3 style="color: var(--color-teal);">1. Graph Basics</h3>
+            <ul>
+                <li>What is a graph? Nodes, Edges, Connectivity</li>
+                <li>Common real-world graphs (social networks, transport, web)</li>
+            </ul>
+
+            <!-- <h3 style="color: var(--color-teal); margin-top: 20px;">2. Representing Graphs</h3>
+            <ul>
+                <li>Adjacency Matrix</li>
+                <li>Adjacency List</li>
+                <li>Trade-offs: Memory, Speed, Use Cases</li>
+            </ul> -->
+
+            <!-- <h3 style="color: var(--color-teal); margin-top: 20px;">3. Traversal Goals</h3>
+            <ul>
+                <li>Reachability: Is there a path?</li>
+                <li>Visit all nodes</li>
+                <li>Shortest-path in unweighted graphs</li>
+            </ul> -->
+
+            <h3 style="color: var(--color-teal); margin-top: 20px;">2. Breadth-First Search (BFS)</h3>
+            <ul>
+                <!-- <li>Intuition: "Ripple" / Layered exploration</li>
+                <li>Mechanism: Queue (FIFO)</li>
+                <li>Trace / Step-by-Step Demo</li> -->
+                <li>Visited Order vs Levels</li>
+                <li>Traversal Tree </li>
+                <!-- <li>Why adjacency matrix is NOT ideal for BFS</li>
+                <li>Correctness: Why BFS yields shortest paths</li> -->
+            </ul>
+
+            <!-- <h3 style="color: var(--color-teal); margin-top: 20px;">5. Activity (Hands-On)</h3>
+            <ul>
+                <li>Build adjacency matrix for a chosen graph</li>
+                <li>Perform BFS manually</li>
+                <li>Construct the BFS traversal tree</li>
+                <li>Reflect: Why different students get different trees</li>
+            </ul> -->
+
+            <h3 style="color: var(--color-teal); margin-top: 20px;">3. Directed vs Undirected Graphs</h3>
+            <h3 style="color: var(--color-teal); margin-top: 20px;">4. Depth-First Search (DFS)</h3>
+            <h3 style="color: var(--color-teal); margin-top: 20px;">5. Graph classes and implementation in Python</h3>
+            <h3 style="color: var(--color-teal); margin-top: 20px;">6. Correctness</h3>
+    
+        </div>
+    </section>
+
+
+    <!-- SLIDE 2: Intuition -->
+    <section>
+        <h2>The Intuition</h2>
+        <div class="split-layout">
+            <div class="col-half" style="font-size: 0.8em; text-align: left;">
+                <p>A graph models <strong>relationships</strong>.</p>
+                <div class="def-box">
+                    <strong>Analogy:</strong>
+                    <ul>
+                        <li><strong>Node:</strong> A Person, City, or Webpage.</li>
+                        <li><strong>Edge:</strong> A Friendship, Road, or Hyperlink.</li>
+                    </ul>
+                </div>
+                <p style="font-size: 0.8em; color: #666;">Unlike charts, graphs don't plot X vs Y. They plot <em>structure</em>.</p>
+            </div>
+            <div class="col-half">
+                <p style="font-size: 0.8em; color: #666;"> Which one is <strong>NOT</strong> a graph?</p>
+                <!-- Placeholder for the collage image -->
+                <img src="https://cdn.prod.website-files.com/65d609edcc331dd0e4eb519b/683e5357b029e44c78368470_AD_4nXfxlXT3frqYTWxta-cGGwr-MeeOYAneTUrKViqRVyOJlQQphBEdNM1k9jMbq1KZhMpwBXdsGz3Kz3_wvSycetBe5AI8hQgF1uk9QsI-RQLqqwk2zOR0RZWWT38T16YSzfR_6LGUgA.png" alt="Social Network Graph" 
+                     style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 120px;">
+                <img src="https://nces.ed.gov/nceskids/help/user_guide/graph/images/line.jpg" alt="Social Network Graph" 
+                     style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 120px;">
+                <img src="https://news.mit.edu/sites/default/files/styles/news_article__image_gallery/public/images/201506/MIT-Airport-1.jpg?itok=wpET4BGp" alt="Social Network Graph" 
+                     style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 120px;">
+                <img src="https://dam.mediacorp.sg/image/upload/s--HG9VwaOg--/c_crop,h_689,w_1224,x_131,y_1/c_fill,g_auto,h_676,w_1200/fl_relative,g_south_east,l_mediacorp:cna:watermark:2021-08:cna,w_0.1/f_auto,q_auto/v1/mediacorp/cna/image/2023/01/19/mrtmap.png?itok=Dhb93KZt" alt="Social Network Graph" 
+                     style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 120px;">
+                <img src="https://i0.wp.com/evia.com.sg/wp-content/uploads/2020/06/3-brand-new-mrt-stations-you-can-look-forward-to.jpg?w=640&ssl=1" alt="Social Network Graph" 
+                     style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 120px;">
+            </div>
+        </div>
+    </section>
+
+    <section data-title="Interactive Example"
+        data-section="Examples"
+        data-subsection="Puzzle">
+        <h2>This is also a graph</h2>
+
+        <div style="
+            position: relative;
+            width: 100%;
+            height: 600px;
+            border: 1px solid #555;
+            overflow: hidden;
+            background: var(--color-yellow);
+            margin-top: 20px;
+        ">
+            <div style="
+                transform: scale(0.55);   /* Adjust zoom level if needed */
+                transform-origin: top left;
+                width: 182%;
+                height: 182%;
+            ">
+                <iframe 
+                    src="https://www.bing.com/spotlight/imagepuzzle"
+                    style="width:100%; height:100%; border:none;"
+                    allow="fullscreen">
+                </iframe>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 3: Formal Definition -->
+    <section>
+        <h2>Formal Definition</h2>
+        <div class="def-box">
+            <p>A graph $G$ is a pair $(V, E)$ where:</p>
+            <ul>
+                <li>$V$ is a set of <strong>Vertices</strong> (Nodes).</li>
+                <li>$E$ is a set of <strong>Edges</strong> (Pairs of nodes).</li>
+            </ul>
+        </div>
+        
+        <div class="split-layout" style="font-size: 0.8em; text-align: center;">
+            <div class="col-half">
+                <h4 style="color: var(--color-text);">Undirected</h4>
+                <svg width="200" height="150" viewBox="0 0 200 150" style="margin: 0 auto; display: block;">
+                    <line x1="50" y1="75" x2="150" y2="75" stroke="#333" stroke-width="2"/>
+                    <circle cx="50" cy="75" r="20" fill="var(--color-teal)" />
+                    <circle cx="150" cy="75" r="20" fill="var(--color-teal)" />
+                    <text x="50" y="85" text-anchor="middle" fill="white" font-family="sans-serif">A</text>
+                    <text x="150" y="85" text-anchor="middle" fill="white" font-family="sans-serif">B</text>
+                </svg>
+                <p>Edge $\{A, B\}$<br>(Mutual, e.g., Siblings)</p>
+            </div>
+            <div class="col-half">
+                <h4 style="color: var(--color-text);">Directed</h4>
+                <svg width="200" height="150" viewBox="0 0 200 150" style="margin: 0 auto; display: block;">
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="28" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+                        </marker>
+                    </defs>
+                    <line x1="50" y1="75" x2="150" y2="75" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+                    <circle cx="50" cy="75" r="20" fill="var(--color-red)" />
+                    <circle cx="150" cy="75" r="20" fill="var(--color-red)" />
+                    <text x="50" y="85" text-anchor="middle" fill="white" font-family="sans-serif">A</text>
+                    <text x="150" y="85" text-anchor="middle" fill="white" font-family="sans-serif">B</text>
+                </svg>
+                <p>Edge $(A, B)$<br>(One-way, e.g., Follows)</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 4: Representation Trade-off -->
+    <section>
+        <h2>Representation</h2>
+        <p style="font-size: 0.8em;">How do we store this in memory?</p>
+        
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th width="50%">Adjacency Matrix</th>
+                    <th width="50%">Adjacency List</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>2D Array <code>A[i][j]</code></td>
+                    <td>Array of Lists <code>L[i]</code></td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="font-family: monospace; background: #eee; padding: 10px;">
+                            0: [0, 1, 0]<br>
+                            1: [1, 0, 1]<br>
+                            2: [0, 1, 0]
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-family: monospace; background: #eee; padding: 10px;">
+                            0 -> 1<br>
+                            1 -> 0, 2<br>
+                            2 -> 1
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><span class="pro">Fast Lookup $O(1)$</span><br>Is A connected to B?</td>
+                    <td><span class="con">Slow Lookup $O(deg)$</span><br>Must scan list.</td>
+                </tr>
+                <tr>
+                    <td><span class="con">Heavy Memory $O(V^2)$</span><br>Bad for sparse graphs.</td>
+                    <td><span class="pro">Efficient Memory $O(V+E)$</span><br>Standard choice.</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- =======================================================
+         PHASE 2: THE CORE (BFS)
+         ======================================================= -->
+
+    <!-- SLIDE 5: The Problem -->
+    <section>
+        <h2>The Problem: Traversal</h2>
+        <div class="split-layout">
+            <div class="col-half" style="text-align: left;">
+                <p>We are at Node <strong>S</strong>. We want to:</p>
+                <ol>
+                    <li>Find if a path to <strong>E</strong> exists.</li>
+                    <li>Find the <strong>Shortest Path</strong>.</li>
+                    <li>Visit every node exactly once.</li>
+                </ol>
+            </div>
+            <div class="col-half">
+                <svg width="400" height="300" viewBox="0 0 400 300" style="margin: 0 auto; display: block;">
+                    <!-- Simple Graph -->
+                    <line x1="50" y1="150" x2="150" y2="50" stroke="#ccc" stroke-width="2" />
+                    <line x1="50" y1="150" x2="150" y2="250" stroke="#ccc" stroke-width="2" />
+                    <line x1="150" y1="50" x2="250" y2="150" stroke="#ccc" stroke-width="2" />
+                    <line x1="150" y1="250" x2="250" y2="150" stroke="#ccc" stroke-width="2" />
+                    <line x1="250" y1="150" x2="350" y2="150" stroke="#ccc" stroke-width="2" stroke-dasharray="5,5"/>
+
+                    <circle cx="50" cy="150" r="25" fill="var(--color-teal)" />
+                    <text x="50" y="160" text-anchor="middle" fill="white" font-weight="bold">S</text>
+                    
+                    <circle cx="350" cy="150" r="25" fill="var(--color-red)" />
+                    <text x="350" y="160" text-anchor="middle" fill="white" font-weight="bold">E</text>
+                </svg>
+                
+                <img src="https://srdas.github.io/MLBook/DSTMAA_images/SmallWorlds.png" alt="Social Network Graph" 
+                     style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 200px;">
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 6: BFS Mechanism -->
+    <section>
+        <h2>Mechanism: The Queue</h2>
+        <p><strong>Breadth-First Search (BFS)</strong> explores in layers, like a ripple in a pond.</p>
+       
+        <div style="background: var(--color-gray); padding: 20px; border-radius: 8px; margin-top: 30px;">
+            <h4 style="margin:0;">Data Structure: Queue (FIFO)</h4>
+            <p style="font-size: 0.8em; margin-top: 5px;">"First In, First Out" (Like a cafeteria line)</p>
+            
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <div style="border: 2px solid var(--color-text); padding: 10px 20px;">IN -></div>
+                <div style="background: white; border: 1px solid #999; padding: 10px 20px;">C</div>
+                <div style="background: white; border: 1px solid #999; padding: 10px 20px;">B</div>
+                <div style="background: var(--color-teal); color: white; border: 1px solid #999; padding: 10px 20px;">A</div>
+                <div style="border: 2px solid var(--color-text); padding: 10px 20px;">-> OUT</div>
+            </div>
+        </div>
+
+        <img src="https://t4.ftcdn.net/jpg/09/61/92/47/360_F_961924758_b2mvolRTNsCiYEIjzoF80XcRP3KMeBkB.jpg" alt="Social Network Graph" 
+                style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 120px;">
+
+    </section>
+
+    <!-- SLIDE 7: Trace Step 1 -->
+    <section>
+        <h2>BFS Trace: Step 1</h2>
+        <div class="split-layout">
+            <div class="col-half" style="text-align: left;">
+                <ul>
+                    <li>Start at <strong>Node 0</strong>.</li>
+                    <li>Mark 0 as <strong>Visited</strong>.</li>
+                    <li>Add 0 to <strong>Queue</strong>.</li>
+                </ul>
+                <br>
+                <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
+                    <strong>Queue:</strong> [ 0 ]
+                </div>
+            </div>
+            <div class="col-half">
+                <svg class="graph-svg" viewBox="0 0 400 300">
+                    <g class="edge">
+                        <line x1="200" y1="50" x2="100" y2="150" />
+                        <line x1="200" y1="50" x2="300" y2="150" />
+                        <line x1="100" y1="150" x2="50" y2="250" />
+                        <line x1="100" y1="150" x2="150" y2="250" />
+                        <line x1="300" y1="150" x2="250" y2="250" />
+                        <line x1="300" y1="150" x2="350" y2="250" />
+                    </g>
+                    <g class="node" transform="translate(200, 50)">
+                        <circle r="20" />
+                        <text text-anchor="middle" dominant-baseline="middle">0</text>
+                    </g>
+
+                    <g class="node">
+                        <circle cx="100" cy="150" r="20" />
+                        <text x="100" y="150">1</text>
+                    </g>
+                    <g class="node">
+                        <circle cx="300" cy="150" r="20" />
+                        <text x="300" y="150">2</text>
+                    </g>
+                    <!-- Bottom row -->
+                    <g class="node"><circle cx="50" cy="250" r="20" /><text x="50" y="250">3</text></g>
+                    <g class="node"><circle cx="150" cy="250" r="20" /><text x="150" y="250">4</text></g>
+                    <g class="node"><circle cx="250" cy="250" r="20" /><text x="250" y="250">5</text></g>
+                    <g class="node"><circle cx="350" cy="250" r="20" /><text x="350" y="250">6</text></g>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 8: Trace Step 2 -->
+    <section>
+        <h2>BFS Trace: Step 2</h2>
+        <div class="split-layout">
+            <div class="col-half" style="text-align: left;">
+                <ul>
+                    <li>Dequeue <strong>0</strong>.</li>
+                    <li>Identify Neighbors: <strong>1, 2</strong>.</li>
+                    <li>Mark visited & Enqueue them.</li>
+                </ul>
+                <br>
+                <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
+                    <strong>Queue:</strong> [ 1, 2 ]
+                </div>
+            </div>
+            <div class="col-half">
+                <svg class="graph-svg" viewBox="0 0 400 300">
+                    <g class="edge">
+                        <line x1="200" y1="50" x2="100" y2="150" stroke="var(--color-teal)" stroke-width="4"/>
+                        <line x1="200" y1="50" x2="300" y2="150" stroke="var(--color-teal)" stroke-width="4"/>
+                        <line x1="100" y1="150" x2="50" y2="250" />
+                        <line x1="100" y1="150" x2="150" y2="250" />
+                        <line x1="300" y1="150" x2="250" y2="250" />
+                        <line x1="300" y1="150" x2="350" y2="250" />
+                    </g>
+                    <g class="node visited"> <!-- 0 is Visited (Gray) -->
+                        <circle cx="200" cy="50" r="20" />
+                        <text x="200" y="50">0</text>
+                    </g>
+                    <g class="node neighbor"> <!-- 1 is Neighbor (Yellow) -->
+                        <circle cx="100" cy="150" r="20" />
+                        <text x="100" y="150">1</text>
+                    </g>
+                    <g class="node neighbor"> <!-- 2 is Neighbor (Yellow) -->
+                        <circle cx="300" cy="150" r="20" />
+                        <text x="300" y="150">2</text>
+                    </g>
+                    <!-- Bottom row -->
+                    <g class="node"><circle cx="50" cy="250" r="20" /><text x="50" y="250">3</text></g>
+                    <g class="node"><circle cx="150" cy="250" r="20" /><text x="150" y="250">4</text></g>
+                    <g class="node"><circle cx="250" cy="250" r="20" /><text x="250" y="250">5</text></g>
+                    <g class="node"><circle cx="350" cy="250" r="20" /><text x="350" y="250">6</text></g>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 9: Trace Step 3 -->
+    <section>
+        <h2>BFS Trace: Step 3</h2>
+        <div class="split-layout">
+            <div class="col-half" style="text-align: left;">
+                <ul>
+                    <li>Dequeue <strong>1</strong>.</li>
+                    <li>Neighbors of 1: <strong>3, 4</strong>.</li>
+                    <li>Queue now has 2 (from before), then 3, 4.</li>
+                </ul>
+                <br>
+                <div style="border: 1px solid #ccc; padding: 10px; text-align: center;">
+                    <strong>Queue:</strong> [ 2, 3, 4 ]
+                </div>
+            </div>
+            <div class="col-half">
+                <svg class="graph-svg" viewBox="0 0 400 300">
+                    <g class="edge">
+                        <line x1="200" y1="50" x2="100" y2="150" />
+                        <line x1="200" y1="50" x2="300" y2="150" />
+                        <line x1="100" y1="150" x2="50" y2="250" stroke="var(--color-teal)" stroke-width="4"/>
+                        <line x1="100" y1="150" x2="150" y2="250" stroke="var(--color-teal)" stroke-width="4"/>
+                        <line x1="300" y1="150" x2="250" y2="250" />
+                        <line x1="300" y1="150" x2="350" y2="250" />
+                    </g>
+                    <g class="node visited">
+                        <circle cx="200" cy="50" r="20" />
+                        <text x="200" y="50">0</text>
+                    </g>
+                    <g class="node visited"> <!-- 1 is now visited -->
+                        <circle cx="100" cy="150" r="20" />
+                        <text x="100" y="150">1</text>
+                    </g>
+                    <g class="node active"> <!-- 2 is waiting (Active/Teal) -->
+                        <circle cx="300" cy="150" r="20" />
+                        <text x="300" y="150">2</text>
+                    </g>
+                    <g class="node neighbor"> <!-- 3, 4 added -->
+                        <circle cx="50" cy="250" r="20" />
+                        <text x="50" y="250">3</text>
+                    </g>
+                    <g class="node neighbor">
+                        <circle cx="150" cy="250" r="20" />
+                        <text x="150" y="250">4</text>
+                    </g>
+                    <g class="node"><circle cx="250" cy="250" r="20" /><text x="250" y="250">5</text></g>
+                    <g class="node"><circle cx="350" cy="250" r="20" /><text x="350" y="250">6</text></g>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 10: Pseudocode -->
+    <section>
+        <h2>Algorithm (Pseudocode)</h2>
+        <pre><code class="language-python" style="font-size: 0.9em; line-height: 1.3;">
+BFS(Graph G, Node start):
+    create Queue Q
+    mark start as visited
+    Q.enqueue(start)
+
+    while Q is not empty:
+        current = Q.dequeue()
+        
+        for neighbor in G.adj[current]:
+            if neighbor is not visited:
+                mark neighbor as visited
+                Q.enqueue(neighbor)
+        </code></pre>
+        <div style="font-size: 0.7em; color: #666; margin-top: 10px;">
+            Key takeaway: The Queue ensures we visit all nodes at distance $K$ before distance $K+1$.
+        </div>
+    </section>
+
+    <section 
+        data-background-iframe="graph-tool.html" 
+        data-background-interactive>
+    </section>
+
+    <section>
+        <h2>Activity</h2>
+        <div class="def-box" style="border-left-color: var(--color-green);">
+            <ul>
+                <li>Pick one <u>graph</u>, and write its <u>adjacency matrix</u> (the adjacency list could help).</li>
+                <li>Then pick a node in that graph, write your <u>traversal tree</u>.</li>
+                <li><strong>Think</strong> Why your traversal tree is <u>different</u>?</li>
+                <li><strong>Think</strong> Why adjacency matrix is <u>not</u> a good idea for traversal?</li>
+            </ul>
+        </div>
+        
+    </section>
+
+    <!-- =======================================================
+         PHASE 3: CONCLUSION
+         ======================================================= -->
+
+    <!-- SLIDE 11: Applications -->
+    <section>
+        <h2>Why BFS?</h2>
+        <div class="split-layout">
+            <div class="col-half" style="text-align: left;">
+                <h3 style="color: var(--color-green); font-size: 1.1em;">Key Property</h3>
+                <p>BFS guarantees finding the <strong>Shortest Path</strong> in unweighted graphs.</p>
+            </div>
+            <div class="col-half" style="text-align: left;">
+                <h3 style="color: var(--color-teal); font-size: 1.1em;">Real World Uses</h3>
+                <ul style="font-size: 0.8em;">
+                    <li><strong>GPS Navigation:</strong> Fewest turns/stops.</li>
+                    <li><strong>Social Media:</strong> "Degrees of Separation" (LinkedIn connections).</li>
+                    <li><strong>Web Crawlers:</strong> Exploring links from a home page.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 12: Summary -->
+    <section>
+        <h2>Summary</h2>
+        <div class="def-box" style="border-left-color: var(--color-yellow);">
+            <ul>
+                <li><strong>Graphs</strong> = Nodes + Edges (Relationships).</li>
+                <li><strong>Adjacency Lists</strong> are usually efficient.</li>
+                <li><strong>BFS</strong> uses a <strong>Queue</strong> to explore layer-by-layer.</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin-top: 40px;">
+            <p style="color: var(--color-yellow); font-weight: bold;">Next Up: Directed Graph & DFS</p>
+            <!-- <p style="font-size: 0.8em;">We will learn how  the <code>Graph</code> class and BFS in C++.</p> -->
+        </div>
+
+    </section>
+
+</div>
+</div>
+
+<!-- Reveal.js Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/plugin/highlight/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/plugin/math/math.min.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        center: false,       // Restored default centering
+        transition: 'none', // Kept "simple change" transition
+        // No explicit width/height settings -> Uses Reveal default (960x700)
+        plugins: [ RevealHighlight, RevealMath.KaTeX ]
+    });
+</script>
+
+</body>
+</html>
