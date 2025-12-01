@@ -312,7 +312,7 @@
         </div>
     </section>
 
-    <section data-title="Interactive Example"
+    <!-- <section data-title="Interactive Example"
         data-section="Examples"
         data-subsection="Puzzle">
         <h2>This is also a graph</h2>
@@ -339,7 +339,7 @@
                 </iframe>
             </div>
         </div>
-    </section>
+    </section> -->
 
     <!-- SLIDE 3: Formal Definition -->
     <section>
@@ -426,6 +426,33 @@
                 </tr>
             </tbody>
         </table>
+       <!-- Graph from Adjacency Matrix -->
+         <svg class="graph-svg" width="350" height="180" viewBox="0 0 350 180">
+         
+             <!-- Edges (0–1 and 1–2) -->
+             <line class="edge" x1="70" y1="90" x2="170" y2="90"></line>
+             <line class="edge" x1="170" y1="90" x2="270" y2="90"></line>
+         
+             <!-- Node 0 -->
+             <g class="node" transform="translate(70, 90)">
+                 <circle r="25"></circle>
+                 <text y="4">0</text>
+             </g>
+         
+             <!-- Node 1 -->
+             <g class="node" transform="translate(170, 90)">
+                 <circle r="25"></circle>
+                 <text y="4">1</text>
+             </g>
+         
+             <!-- Node 2 -->
+             <g class="node" transform="translate(270, 90)">
+                 <circle r="25"></circle>
+                 <text y="4">2</text>
+             </g>
+         
+         </svg>
+
     </section>
 
     <!-- =======================================================
@@ -463,11 +490,12 @@
                 <img src="https://srdas.github.io/MLBook/DSTMAA_images/SmallWorlds.png" alt="Social Network Graph" 
                      style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 200px;">
             </div>
+           hhere insert my three nodes
         </div>
     </section>
 
     <!-- SLIDE 6: BFS Mechanism -->
-    <section>
+    <!-- <section>
         <h2>Mechanism: The Queue</h2>
         <p><strong>Breadth-First Search (BFS)</strong> explores in layers, like a ripple in a pond.</p>
        
@@ -487,7 +515,7 @@
         <img src="https://t4.ftcdn.net/jpg/09/61/92/47/360_F_961924758_b2mvolRTNsCiYEIjzoF80XcRP3KMeBkB.jpg" alt="Social Network Graph" 
                 style="border-radius: 4px; box-shadow: 0 5px 5px rgba(0,0,0,0.1); max-height: 120px;">
 
-    </section>
+    </section> -->
 
     <!-- SLIDE 7: Trace Step 1 -->
     <section>
@@ -735,4 +763,5 @@ BFS(Graph G, Node start):
 </script>
 
 </body>
+
 </html>
