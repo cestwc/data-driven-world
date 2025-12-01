@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Graph Traversal Tool</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+
+    :root {
+      --color-red: #eb5e5f;
+      --color-teal: #4fbccb;
+      --color-green: #8bc469;
+      --color-yellow: #f3c462;
+      --color-gray: #e8e8e8;
+      --color-text: #2c3e50;
+      --font-main: "Inter", sans-serif;
+    }
+
+    /* === STANDALONE LAYOUT === */
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: sans-serif;
+      background: #fafafa;
+    }
+
+    /* Top fixed toolbar */
+    #topBar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 20;
+      background: white;
+      padding: 10px;
+      border-radius: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+
+    /* Graph layer */
+    #graphContainer {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    #graphContainer svg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    #graphContainer svg:active {
+      cursor: grabbing;
+    }
+
+    /* Right column fixed info panel */
+    #infoPanel {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      width: 350px;
+      bottom: 20px; /* fills height */
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      z-index: 10;
+      pointer-events: none; /* let clicks pass through gaps */
+    }
+
+    .panel-box {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      pointer-events: all; /* re-enable clicks on boxes */
+    }
+
+    /* Pseudocode Box (L-Shape layout) */
+    #pseudocode {
+      position: absolute;
+      bottom: 50px;
+      left: 10px;
+      width: fit-content;
+      max-width: calc(100% - 390px);
+      z-index: 20;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+      pointer-events: all;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    #status {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      z-index: 30;
+      background: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-style: italic;
+      font-size: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Visual Styling */
+    label { font-size: 14px; }
+    .node circle { stroke: #333; stroke-width: 1.5px; fill: #ffffff; transition: fill 0.3s, stroke-width 0.3s; }
+    .node text { font-size: 14px; font-weight: bold; pointer-events: none; }
+    .start-node { stroke-width: 3px !important; }
+    .in-frontier { fill: var(--color-yellow) !important; }
+    .current { fill: var(--color-teal) !important; stroke-width: 3px !important; }
+    .visited { fill: var(--color-green) !important; }
+    .level-0 { fill: #fff3cd !important; } 
+    .level-1 { fill: #ffe0b2 !important; }
+    .level-2 { fill: #ffccbc !important; }
+    .level-3 { fill: #d7ccc8 !important; }
+    .level-4 { fill: #c5cae9 !important; }
+    .edge { stroke: #999; stroke-width: 2px; }
+    .edge-tree { stroke: var(--color-teal); stroke-width: 3px; }
+    .edge-active { stroke-dasharray: 4,2; }
+
+    #frontierBubbles { display: flex; gap: 8px; align-items: center; min-height: 40px; }
+    .bubble { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #555; background: #fffbdd; font-weight: bold; }
+    .code-line { padding: 2px; }
+    .highlight { background: #d0ebff; }
+    .editor-row { margin-top: 6px; }
+    .editor-row input { width: 40px; padding: 2px 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+  <div id="topBar">
+    <div id="controls">
+      <label>
+        Preset:
+        <select id="presetSelect">
+          <option value="default">Default</option>
+          <option value="Binary Tree">Binary Tree</option>
+          <option value="Grid 3x3">Grid 3x3</option>
+          <option value="Islands">Islands</option>
+        </select>
+      </label>
+      <button id="playPauseBtn">Play</button>
+      <button id="nextStepBtn">Next Step</button>
+      <button id="resetBtn">Reset Traversal</button>
+      <label>Algorithm: <select id="algoSelect"><option value="BFS">BFS</option><option value="DFS">DFS</option></select></label>
+      <label>Interval: <input id="speedSlider" type="range" min="200" max="2000" step="100" value="1000" /></label>
+      <span id="speedLabel" style="font-size:12px;">1000 ms/step</span>
+      <label style="margin-left:10px;"><input type="checkbox" id="lockPositions" /> Lock positions</label>
+    </div>
+  </div>
+
+  <div id="graphContainer"><svg></svg></div>
+
+  <div id="infoPanel">
+    <div class="panel-box"><strong>Frontier:</strong><div id="frontierBubbles"></div></div>
+    <div class="panel-box"><strong>Visited:</strong><div id="visitedList"></div></div>
+    <div class="panel-box"><strong>Levels / Depth:</strong><div id="levelsList" style="white-space:pre;"></div></div>
+    <div class="panel-box"><strong>Adjacency List:</strong><div id="adjList"></div></div>
+    <div class="panel-box"><strong>Traversal Tree:</strong><div id="treeList"></div></div>
+    <div class="panel-box">
+      <strong>Graph Editor:</strong>
+      <div class="editor-row"><label>New node ID: <input id="newNodeId" /></label><button id="addNodeBtn">Add Node</button></div>
+      <div class="editor-row"><label>Edge: <input id="edgeSource" placeholder="A" /> – <input id="edgeTarget" placeholder="B" /></label><button id="addEdgeBtn">Add Edge</button></div>
+      <div class="editor-row"><button id="resetGraphBtn">Reset Graph</button></div>
+    </div>
+  </div>
+
+  <pre id="pseudocode"></pre>
+
+  <div id="status">Click a node to choose a start node for traversal.</div>
+
+  <script>
+    // --- EXACT JAVASCRIPT FROM PREVIOUS TURN GOES HERE ---
+    // (Copy the script content starting from "const defaultGraph = ..." 
+    // to the end of the script block. Do NOT include Reveal.initialize)
+    
+    // Paste the Javascript logic here...
+    
+    // ...
+    
+    // ...
+    
+    // Ensure you use the updated "simulation" code with velocityDecay(0.6)
+    // and the "getGraphSize" logic logic.
+    
+    // -----------------------------------------------------------
+    // ONE SMALL CHANGE FOR RESIZING IN IFRAME:
+    // -----------------------------------------------------------
+    // In your JS, where you have "window.addEventListener('resize'...", 
+    // ensure it looks like this so it catches iframe resizing:
+    
+    const defaultGraph = { nodes: [{ id: "A" }, { id: "B" }, { id: "C" }, { id: "D" }, { id: "E" }, { id: "F" }, { id: "G" }], edges: [{ source: "A", target: "B" }, { source: "A", target: "C" }, { source: "B", target: "D" }, { source: "B", target: "E" }, { source: "C", target: "F" }, { source: "E", target: "G" }] };
+    const graphPresets = {
+    // 1. A Perfect Binary Tree
+    // Great for showing:
+    // - Exponential growth of BFS frontier
+    // - Deep recursion stack in DFS
+    "Binary Tree": {
+      nodes: [
+        { id: "Root" }, 
+        { id: "L1" }, { id: "R1" }, 
+        { id: "L2a" }, { id: "L2b" }, { id: "R2a" }, { id: "R2b" }
+      ],
+      edges: [
+        { source: "Root", target: "L1" },
+        { source: "Root", target: "R1" },
+        { source: "L1", target: "L2a" },
+        { source: "L1", target: "L2b" },
+        { source: "R1", target: "R2a" },
+        { source: "R1", target: "R2b" }
+      ]
+    },
+
+    // 2. The "Grid" (3x3 Mesh)
+    // Great for showing:
+    // - "Wavefront" expansion in BFS (diamond shape)
+    // - Multiple paths to the same node
+    "Grid 3x3": {
+      nodes: [
+        { id: "1" }, { id: "2" }, { id: "3" },
+        { id: "4" }, { id: "5" }, { id: "6" },
+        { id: "7" }, { id: "8" }, { id: "9" }
+      ],
+      edges: [
+        // Horizontal rows
+        { source: "1", target: "2" }, { source: "2", target: "3" },
+        { source: "4", target: "5" }, { source: "5", target: "6" },
+        { source: "7", target: "8" }, { source: "8", target: "9" },
+        // Vertical cols
+        { source: "1", target: "4" }, { source: "4", target: "7" },
+        { source: "2", target: "5" }, { source: "5", target: "8" },
+        { source: "3", target: "6" }, { source: "6", target: "9" }
+      ]
+    },
+
+    // 3. Disconnected Components
+    // Great for showing:
+    // - That standard BFS/DFS stops after exploring one island
+    // - The need for an outer loop (e.g., "for each node in G...")
+    "Islands": {
+      nodes: [
+        { id: "A" }, { id: "B" }, { id: "C" }, // Triangle
+        { id: "X" }, { id: "Y" }, { id: "Z" }  // Line
+      ],
+      edges: [
+        { source: "A", target: "B" },
+        { source: "B", target: "C" },
+        { source: "C", target: "A" }, // Cycle here
+        { source: "X", target: "Y" },
+        { source: "Y", target: "Z" }
+      ]
+    }
+  };
+    let graph = JSON.parse(JSON.stringify(defaultGraph));
+    let adjacency = {};
+    let algorithm = "BFS";
+    let autoTimer = null;
+    let stepDelay = 1000;
+    let lockPositionsFlag = false;
+    let traversalState = { started: false, finished: false, frontier: [], visited: new Set(), levels: {}, parent: {}, current: null, startId: null };
+
+    // --- DOM REFERENCES ---
+    const frontierContainer = d3.select("#frontierBubbles");
+    const visitedContainer = d3.select("#visitedList");
+    const levelsContainer = d3.select("#levelsList");
+    const adjListContainer = d3.select("#adjList");
+    const treeContainer = d3.select("#treeList");
+    const statusEl = d3.select("#status");
+    const speedSlider = document.getElementById("speedSlider");
+    const speedLabel = document.getElementById("speedLabel");
+    const algoSelect = document.getElementById("algoSelect");
+    const lockCheckbox = document.getElementById("lockPositions");
+    const pseudocode = d3.select("#pseudocode");
+
+    // --- LOGIC ---
+    function buildAdjacency() {
+      adjacency = {};
+      graph.nodes.forEach(n => { adjacency[n.id] = []; });
+      graph.edges.forEach(e => {
+        const s = typeof e.source === "string" ? e.source : e.source.id;
+        const t = typeof e.target === "string" ? e.target : e.target.id;
+        if (!adjacency[s]) adjacency[s] = [];
+        if (!adjacency[t]) adjacency[t] = [];
+        if (!adjacency[s].includes(t)) adjacency[s].push(t);
+        if (!adjacency[t].includes(s)) adjacency[t].push(s);
+      });
+    }
+    function updateAdjacencyUI() {
+      adjListContainer.html("");
+      Object.keys(adjacency).sort().forEach(k => {
+        adjListContainer.append("div").text(`${k}: ${adjacency[k].join(", ")}`);
+      });
+    }
+
+    const bfsCode = ["BFS(start):", "  create empty queue Q", "  mark start visited; enqueue(start)", "  while Q not empty:", "    u = Q.dequeue()", "    for each neighbor v of u:", "      if v not visited:", "        mark v visited", "        enqueue(v)"];
+    const dfsCode = ["DFS(start):", "  create empty stack S", "  mark start unvisited", "  push(start)", "  while S not empty:", "    u = S.pop()", "    if u not visited:", "      mark u visited", "      for each neighbor v of u:", "        if v not visited:", "          push(v)"];
+
+    function renderPseudocode() {
+      pseudocode.selectAll(".code-line").remove();
+      const lines = algorithm === "BFS" ? bfsCode : dfsCode;
+      lines.forEach((line, i) => {
+        pseudocode.append("div").attr("class", "code-line").attr("id", `code-${i}`).text(line);
+      });
+    }
+    function highlightCode(index) {
+      pseudocode.selectAll(".code-line").classed("highlight", false);
+      if (index === null || index === undefined) return;
+      d3.select(`#code-${index}`).classed("highlight", true);
+    }
+
+    // --- D3 SETUP ---
+    const svg = d3.select("svg");
+    function getGraphSize() {
+      // Use window inner dimensions since body is fullscreen
+      return { w: window.innerWidth, h: window.innerHeight };
+    }
+    let { w: width, h: height } = getGraphSize();
+
+    window.addEventListener("resize", () => {
+      const sz = getGraphSize();
+      width = sz.w;
+      height = sz.h;
+      simulation.force("center", d3.forceCenter(width / 2, height / 2));
+      simulation.alpha(1).restart();
+    });
+
+    const linkGroup = svg.append("g").attr("class", "links");
+    const nodeGroup = svg.append("g").attr("class", "nodes");
+    let link = linkGroup.selectAll("line");
+    let node = nodeGroup.selectAll("g");
+
+    const simulation = d3.forceSimulation()
+      .velocityDecay(0.6)
+      .force("link", d3.forceLink().id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+    simulation.on("tick", () => {
+      link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+
+    const drag = d3.drag()
+      .on("start", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      })
+      .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on("end", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        if (!lockPositionsFlag) { d.fx = null; d.fy = null; }
+      });
+
+    function edgeKey(d) {
+      const s = typeof d.source === "string" ? d.source : d.source.id;
+      const t = typeof d.target === "string" ? d.target : d.target.id;
+      return s + "-" + t;
+    }
+    function refreshGraphVisuals() {
+      link = linkGroup.selectAll("line").data(graph.edges, edgeKey);
+      link.exit().remove();
+      const linkEnter = link.enter().append("line").attr("class", "edge");
+      link = linkEnter.merge(link);
+      node = nodeGroup.selectAll("g").data(graph.nodes, d => d.id);
+      node.exit().remove();
+      const nodeEnter = node.enter().append("g").attr("class", "node");
+      nodeEnter.append("circle").attr("r", 20);
+      nodeEnter.append("text").attr("dy", 6).attr("text-anchor", "middle").text(d => d.id);
+      node = nodeEnter.merge(node);
+      node.on("click", (event, d) => initTraversal(d.id));
+      node.call(drag);
+      simulation.nodes(graph.nodes);
+      simulation.force("link").links(graph.edges);
+      simulation.alpha(1).restart();
+    }
+
+    // --- UI UPDATERS ---
+    function updateStatus(msg) { statusEl.text(msg); }
+    function updateFrontierUI() {
+      const data = traversalState.frontier;
+      const bubbles = frontierContainer.selectAll(".bubble").data(data, d => d);
+      bubbles.exit().transition().duration(300).style("opacity", 0).remove();
+      const enter = bubbles.enter().append("div").attr("class", "bubble").style("opacity", 0).text(d => d);
+      enter.transition().duration(300).style("opacity", 1);
+    }
+    function updateVisitedUI() { visitedContainer.text(Array.from(traversalState.visited).join(", ")); }
+    function updateLevelsUI() {
+      const entries = Object.keys(traversalState.levels).sort((a, b) => traversalState.levels[a] - traversalState.levels[b]).map(k => `${k}: level ${traversalState.levels[k]}`);
+      levelsContainer.text(entries.join("\n"));
+    }
+    function updateTreeUI() {
+      treeContainer.html("");
+      const parent = traversalState.parent;
+      const entries = Object.keys(parent).filter(n => parent[n] !== null && parent[n] !== undefined).sort((a, b) => (traversalState.levels[a] || 0) - (traversalState.levels[b] || 0));
+      if (entries.length === 0) { treeContainer.text("(none yet)"); return; }
+      entries.forEach(nodeId => { treeContainer.append("div").text(`${parent[nodeId]} → ${nodeId}`); });
+    }
+    function clearVisualStyles() {
+      node.select("circle").attr("class", "").attr("fill", "white");
+      link.classed("edge-tree", false).classed("edge-active", false);
+      frontierContainer.selectAll(".bubble").remove();
+      visitedContainer.text(""); levelsContainer.text(""); treeContainer.text("");
+    }
+    function getNodeSel(id) { return node.filter(d => d.id === id); }
+    function getEdgeSel(a, b) {
+      return link.filter(d => {
+        const s = typeof d.source === "string" ? d.source : d.source.id;
+        const t = typeof d.target === "string" ? d.target : d.target.id;
+        return (s === a && t === b) || (s === b && t === a);
+      });
+    }
+
+    // --- TRAVERSAL ---
+    function resetTraversalState() { traversalState = { started: false, finished: false, frontier: [], visited: new Set(), levels: {}, parent: {}, current: null, startId: null }; }
+    function initTraversal(startId) {
+      stopAuto(); clearVisualStyles(); resetTraversalState();
+      traversalState.started = true; traversalState.startId = startId;
+      traversalState.frontier = [startId]; traversalState.levels[startId] = 0; traversalState.parent[startId] = null;
+      const startNode = getNodeSel(startId).select("circle");
+      startNode.classed("start-node", true).classed("in-frontier", true).classed("level-0", true);
+      updateFrontierUI(); updateLevelsUI(); updateTreeUI();
+      renderPseudocode(); highlightCode(1);
+      updateStatus(`Start ${algorithm} at node ${startId}. Press Play or Next Step.`);
+    }
+    function resetAllTraversal() {
+      stopAuto(); clearVisualStyles(); resetTraversalState();
+      updateFrontierUI(); updateVisitedUI(); updateLevelsUI(); updateTreeUI();
+      renderPseudocode(); highlightCode(null);
+      updateStatus("Click a node to choose a start node for traversal.");
+    }
+    function traversalStep() {
+      if (!traversalState.started || traversalState.finished) return;
+      if (traversalState.frontier.length === 0) { traversalState.finished = true; highlightCode(null); updateStatus(`${algorithm} complete.`); return; }
+      let u;
+      if (algorithm === "BFS") { highlightCode(3); u = traversalState.frontier.shift(); highlightCode(4); } 
+      else { highlightCode(4); u = traversalState.frontier.pop(); highlightCode(5); }
+      traversalState.current = u; traversalState.visited.add(u);
+      getNodeSel(u).select("circle").classed("in-frontier", false).classed("current", true).classed("visited", true);
+      updateFrontierUI(); updateVisitedUI();
+      const neighbors = adjacency[u] || [];
+      const newNodes = [];
+      algorithm === "BFS" ? highlightCode(5) : highlightCode(7);
+      neighbors.forEach(v => {
+        if (!traversalState.visited.has(v) && !traversalState.frontier.includes(v)) {
+          if (algorithm === "BFS") {
+            highlightCode(6); highlightCode(7);
+            traversalState.levels[v] = (traversalState.levels[u] || 0) + 1;
+            traversalState.frontier.push(v); highlightCode(8);
+          } else {
+            highlightCode(8);
+            traversalState.levels[v] = (traversalState.levels[u] || 0) + 1;
+            traversalState.frontier.push(v); highlightCode(9);
+          }
+          traversalState.parent[v] = u; newNodes.push(v);
+          getNodeSel(v).select("circle").classed("in-frontier", true).classed(`level-${traversalState.levels[v]}`, true);
+          getEdgeSel(u, v).classed("edge-tree", true).classed("edge-active", true);
+        }
+      });
+      updateFrontierUI(); updateLevelsUI(); updateTreeUI();
+      updateStatus(`Processed ${u}. ${newNodes.length ? "New neighbors: " + newNodes.join(", ") : "No new neighbors."}`);
+    }
+
+    // --- CONTROLS ---
+    function startAuto() { if (autoTimer || traversalState.finished || !traversalState.started) return; autoTimer = setInterval(() => { traversalStep(); if (traversalState.finished) stopAuto(); }, stepDelay); document.getElementById("playPauseBtn").textContent = "Pause"; }
+    function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } document.getElementById("playPauseBtn").textContent = "Play"; }
+    
+    document.getElementById("playPauseBtn").addEventListener("click", () => { if (!traversalState.started) { alert("Click start node."); return; } if (autoTimer) stopAuto(); else startAuto(); });
+    document.getElementById("nextStepBtn").addEventListener("click", () => { if (!traversalState.started) { alert("Click start node."); return; } stopAuto(); traversalStep(); });
+    document.getElementById("resetBtn").addEventListener("click", () => resetAllTraversal());
+    algoSelect.addEventListener("change", (e) => { algorithm = e.target.value; renderPseudocode(); highlightCode(null); resetAllTraversal(); updateStatus(`${algorithm} selected.`); });
+    speedSlider.addEventListener("input", (e) => { stepDelay = parseInt(e.target.value, 10); speedLabel.textContent = `${stepDelay} ms/step`; if (autoTimer) { stopAuto(); startAuto(); } });
+    lockCheckbox.addEventListener("change", (e) => { lockPositionsFlag = e.target.checked; if (!lockPositionsFlag) { graph.nodes.forEach(n => { n.fx = null; n.fy = null; }); simulation.alpha(0.5).restart(); } });
+    document.getElementById("addNodeBtn").addEventListener("click", () => { addNode(document.getElementById("newNodeId").value); document.getElementById("newNodeId").value = ""; });
+    document.getElementById("addEdgeBtn").addEventListener("click", () => { addEdge(document.getElementById("edgeSource").value, document.getElementById("edgeTarget").value); document.getElementById("edgeSource").value = ""; document.getElementById("edgeTarget").value = ""; });
+    document.getElementById("resetGraphBtn").addEventListener("click", () => resetGraph());
+    document.getElementById("presetSelect").addEventListener("change", (e) => {
+      const key = e.target.value;
+      
+      if (key === "default") {
+        // Reload the original hardcoded default
+        graph = JSON.parse(JSON.stringify(defaultGraph));
+      } else if (graphPresets[key]) {
+        // Load from our new list
+        graph = JSON.parse(JSON.stringify(graphPresets[key]));
+      }
+      
+      // Refresh everything
+      buildAdjacency();
+      updateAdjacencyUI();
+      refreshGraphVisuals();
+      resetAllTraversal();
+      updateStatus(`Loaded preset: ${key}. Click a start node.`);
+    });
+
+    function addNode(id) { if(!id)return; if(graph.nodes.some(n=>n.id===id))return; graph.nodes.push({id}); buildAdjacency(); updateAdjacencyUI(); refreshGraphVisuals(); resetAllTraversal(); }
+    function addEdge(s, t) { if(!s||!t||s===t)return; if(!graph.nodes.some(n=>n.id===s)||!graph.nodes.some(n=>n.id===t))return; if(graph.edges.some(e=>(e.source.id===s&&e.target.id===t)||(e.source.id===t&&e.target.id===s)))return; graph.edges.push({source:s,target:t}); buildAdjacency(); updateAdjacencyUI(); refreshGraphVisuals(); resetAllTraversal(); }
+    function resetGraph() { graph=JSON.parse(JSON.stringify(defaultGraph)); buildAdjacency(); updateAdjacencyUI(); refreshGraphVisuals(); resetAllTraversal(); }
+
+    // --- INIT ---
+    buildAdjacency(); updateAdjacencyUI(); refreshGraphVisuals(); renderPseudocode();
+  </script>
+</body>
+</html>
